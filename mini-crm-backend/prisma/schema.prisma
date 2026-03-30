@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String?
+  telefone  String?
+  empresa   String?
+  tags      String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  customerId      String
+  titulo          String
+  descricao       String?
+  status          OrderStatus @default(ABERTO)
+  orcamentoMaximo Decimal?
+  moeda           String      @default("EUR")
+  prazoDesejado   DateTime?
+  origemLead      String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  events        OrderEvent[]
+  orderMachines OrderMachine[]
+}
+
+enum OrderStatus {
+  ABERTO
+  PESQUISANDO
+  PROPOSTA_ENVIADA
+  FECHADO
+  PERDIDO
+}
+
+model Machine {
+  id            String   @id @default(cuid())
+  fabricante    String
+  modelo        String
+  ano           Int?
+  formato       String?
+  cores         Int?
+  pais          String?
+  precoPedido   Decimal?
+  moeda         String   @default("EUR")
+  fonte         String?
+  urlAnuncio    String?
+  notasTecnicas String?
+  arquivada     Boolean  @default(false)    // ← ADICIONAR
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orderMachines OrderMachine[]
+}
+
+model OrderMachine {
+  id        String             @id @default(cuid())
+  orderId   String
+  machineId String
+  status    OrderMachineStatus @default(CANDIDATA)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  machine Machine @relation(fields: [machineId], references: [id])
+  events  OrderEvent[]
+
+  @@unique([orderId, machineId])
+}
+
+enum OrderMachineStatus {
+  CANDIDATA
+  PROPOSTA_ENVIADA
+  DESCARTADA
+  SELECIONADA
+}
+
+model OrderEvent {
+  id             String         @id @default(cuid())
+  orderId        String
+  type           OrderEventType
+  orderMachineId String?
+  oldStatus      OrderStatus?
+  newStatus      OrderStatus?
+  mensagem       String?
+  createdAt      DateTime       @default(now())
+
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderMachine OrderMachine? @relation(fields: [orderMachineId], references: [id])
+}
+
+enum OrderEventType {
+  ORDER_CREATED
+  MACHINE_LINKED
+  MACHINE_REMOVED
+  NOTE
+  STATUS_CHANGED
+}
