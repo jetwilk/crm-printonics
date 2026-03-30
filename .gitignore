@@ -1,0 +1,105 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+**/node_modules/
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+coverage/
+.vite/
+**/dist/
+**/build/
+**/coverage/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# OS / Editor files
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Cache / temp
+# =========================
+.tmp/
+.temp/
+.cache/
+.eslintcache
+
+# =========================
+# Package manager files
+# =========================
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# =========================
+# Runtime / process files
+# =========================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# =========================
+# Uploads / generated files
+# =========================
+uploads/
+public/uploads/
+tmp/
+temp/
+
+# =========================
+# Prisma / database local files
+# =========================
+*.db
+*.db-journal
+dev.db
+dev.db-journal
+
+# =========================
+# Test artifacts
+# =========================
+playwright-report/
+test-results/
+
+# =========================
+# Misc accidental files
+# =========================
+npm
+mini-crm-frontend@0.0.0
+{
