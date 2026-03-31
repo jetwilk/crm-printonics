@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "postinstall": "chmod +x node_modules/.bin/* && npm run build && npx prisma generate",
+    "postinstall": "chmod +x node_modules/.bin/* && cd ../mini-crm-frontend && npm install && npm run build && cd ../mini-crm-backend && chmod +x node_modules/.bin/* && npm run build && npx prisma generate",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
