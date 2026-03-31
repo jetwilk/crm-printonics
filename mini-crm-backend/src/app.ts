@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
+import staticFiles from "@fastify/static"; // ← NOVO
+import path from "path";                   // ← NOVO
 import { customerRoutes } from "./modules/customers/customer.routes";
 import { orderRoutes } from "./modules/orders/order.routes";
 import { eventRoutes } from "./modules/events/event.routes";
@@ -13,22 +15,28 @@ export async function buildApp() {
   await app.register(cors, {
     origin: [
       "http://localhost:5173",
-      "http://printonics.zyns.com:5173",
-      "http://printonics.zyns.com",
+      "https://crm.printonicsapp.fr", // ← NOVO
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   });
 
   await app.register(sensible);
+
+  // Serve o frontend React (pasta dist/) ← NOVO
+  await app.register(staticFiles, {
+    root: path.join(__dirname, "../../mini-crm-frontend/dist"),
+    prefix: "/",
+  });
+
   await app.register(customerRoutes);
   await app.register(orderRoutes);
   await app.register(eventRoutes);
   await app.register(machineRoutes);
-  
-  // Adiciona antes do setErrorHandler
-app.get("/", async (_request, reply) => {
-  return reply.send({ status: "ok", app: "Printonics CRM API" });
-});
+
+  // Todas as rotas desconhecidas devolvem o index.html (React Router) ← NOVO
+  app.setNotFoundHandler((_request, reply) => {
+    reply.sendFile("index.html");
+  });
 
   app.setErrorHandler(errorHandler);
   return app;

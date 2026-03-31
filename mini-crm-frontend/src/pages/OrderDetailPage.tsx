@@ -1,34 +1,21 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { machinesApi } from "../api/machines";
 import toast from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { machinesApi } from "../api/machines";
 import { ordersApi } from "../api/orders";
 import { eventsApi } from "../api/events";
-
 import { StatusSelector } from "../components/orders/StatusSelector";
 import { Spinner } from "../components/ui/Spinner";
 import { EmptyState } from "../components/ui/EmptyState";
-
-import type {
-  OrderEventType,
-  CreateMachinePayload,
-  OrderMachine,
-  OrderEvent,
-} from "../types";
-
-type LinkMachinePayload = CreateMachinePayload & {
-  mensagem?: string;
-  machineId?: string;
-};
+import type { OrderEventType, CreateMachinePayload, OrderMachine, OrderEvent } from "../types";
 
 const eventTypeLabel: Record<OrderEventType, string> = {
-  ORDER_CREATED: "📋 Pedido criado",
-  MACHINE_LINKED: "🔗 Máquina associada",
+  ORDER_CREATED:   "📋 Pedido criado",
+  MACHINE_LINKED:  "🔗 Máquina associada",
   MACHINE_REMOVED: "❌ Máquina removida",
-  NOTE: "📝 Nota",
-  STATUS_CHANGED: "🔄 Status alterado",
+  NOTE:            "📝 Nota",
+  STATUS_CHANGED:  "🔄 Status alterado",
 };
 
 function ExistingMachineSelector({
@@ -45,14 +32,12 @@ function ExistingMachineSelector({
 
   const { data: machines = [], isLoading } = useQuery({
     queryKey: ["machines"],
-    queryFn: () => machinesApi.list(),
+    queryFn: machinesApi.list,
   });
 
   const mutation = useMutation({
     mutationFn: () =>
-      eventsApi.linkMachine(orderId, {
-        machineId: selectedId!,
-      } as LinkMachinePayload),
+      eventsApi.linkMachine(orderId, { machineId: selectedId! }),
     onSuccess: () => {
       toast.success("Máquina associada ao pedido! 🖨️");
       onSuccess();
@@ -111,14 +96,15 @@ function ExistingMachineSelector({
                     .join(" · ")}
                 </p>
               </div>
-
               <div className="flex items-center gap-3">
                 {machine.precoPedido != null && (
                   <span className="text-sm font-semibold text-green-600 dark:text-green-400">
                     {Number(machine.precoPedido).toLocaleString("pt-PT")} {machine.moeda}
                   </span>
                 )}
-                {selectedId === machine.id && <span className="text-blue-500 text-lg">✓</span>}
+                {selectedId === machine.id && (
+                  <span className="text-blue-500 text-lg">✓</span>
+                )}
               </div>
             </div>
           ))}
@@ -139,13 +125,9 @@ function ExistingMachineSelector({
 export function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const queryClient = useQueryClient();
-
   const [note, setNote] = useState("");
   const [showMachineForm, setShowMachineForm] = useState(false);
-  const [machineMode, setMachineMode] = useState<"existing" | "new">("existing");
-  const [machineForm, setMachineForm] = useState<Partial<CreateMachinePayload>>({
-    moeda: "EUR",
-  });
+  const [machineForm, setMachineForm] = useState<Partial<CreateMachinePayload>>({ moeda: "EUR" });
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", orderId],
@@ -158,12 +140,23 @@ export function OrderDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["order", orderId] });
       setNote("");
-      toast.success("Nota adicionada com sucesso! 📝");
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
     },
   });
+
+  const [machineMode, setMachineMode] = useState<"existing" | "new">("existing");
+
+  const createOrderMutation = useMutation({
+  mutationFn: (payload: CreateOrderPayload) => ordersApi.create(payload),
+  onSuccess: () => {
+    toast.success("Pedido criado com sucesso! ✅");
+    queryClient.invalidateQueries({ queryKey: ["orders", customerId] });
+    setShowForm(false);
+    setForm({ moeda: "EUR", origemLead: "WhatsApp" });
+  },
+  onError: (err: Error) => {
+    toast.error(err.message);
+  },
+});
 
   const linkMachineMutation = useMutation({
     mutationFn: (payload: CreateMachinePayload) => eventsApi.linkMachine(orderId!, payload),
@@ -171,57 +164,39 @@ export function OrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["order", orderId] });
       setShowMachineForm(false);
       setMachineForm({ moeda: "EUR" });
-      toast.success("Máquina associada com sucesso! ✅");
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
     },
   });
 
   if (isLoading) return <Spinner />;
-  if (!order) {
-    return <p className="text-red-500 text-center py-8">Pedido não encontrado.</p>;
-  }
+  if (!order) return <p className="text-red-500 text-center py-8">Pedido não encontrado.</p>;
 
-  const machineFields: Array<{
-    label: string;
-    key: keyof CreateMachinePayload;
-    placeholder: string;
-    type?: string;
-  }> = [
+  const machineFields: Array<{ label: string; key: keyof CreateMachinePayload; placeholder: string; type?: string }> = [
     { label: "Fabricante *", key: "fabricante", placeholder: "Heidelberg" },
-    { label: "Modelo *", key: "modelo", placeholder: "SM52-4" },
-    { label: "Ano", key: "ano", placeholder: "2007", type: "number" },
-    { label: "País", key: "pais", placeholder: "Alemanha" },
-    { label: "Preço (€)", key: "precoPedido", placeholder: "35000", type: "number" },
+    { label: "Modelo *",     key: "modelo",     placeholder: "SM52-4" },
+    { label: "Ano",          key: "ano",        placeholder: "2007",   type: "number" },
+    { label: "País",         key: "pais",       placeholder: "Alemanha" },
+    { label: "Preço (€)",    key: "precoPedido",placeholder: "35000",  type: "number" },
     { label: "URL do anúncio", key: "urlAnuncio", placeholder: "https://..." },
   ];
 
   return (
     <div>
       <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        <Link to="/customers" className="hover:text-blue-600 dark:hover:text-blue-400">
-          Clientes
-        </Link>
+        <Link to="/customers" className="hover:text-blue-600 dark:hover:text-blue-400">Clientes</Link>
         <span className="mx-2">/</span>
         <span className="truncate">{order.titulo}</span>
       </div>
 
+      {/* Cabeçalho */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6 shadow-sm">
         <div className="flex items-start justify-between mb-3">
           <h1 className="text-2xl font-bold">{order.titulo}</h1>
           <StatusSelector orderId={order.id} currentStatus={order.status} />
         </div>
-
-        {order.descricao && (
-          <p className="text-gray-600 dark:text-gray-300 mb-3">{order.descricao}</p>
-        )}
-
+        {order.descricao && <p className="text-gray-600 dark:text-gray-300 mb-3">{order.descricao}</p>}
         <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
           {order.orcamentoMaximo != null && (
-            <span>
-              💰 {Number(order.orcamentoMaximo).toLocaleString("pt-PT")} {order.moeda}
-            </span>
+            <span>💰 {Number(order.orcamentoMaximo).toLocaleString("pt-PT")} {order.moeda}</span>
           )}
           {order.prazoDesejado && (
             <span>📅 {new Date(order.prazoDesejado).toLocaleDateString("pt-PT")}</span>
@@ -230,27 +205,19 @@ export function OrderDetailPage() {
         </div>
       </div>
 
+      {/* Máquinas candidatas */}
       {order.orderMachines?.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-3">🖨️ Máquinas Candidatas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {order.orderMachines.map((om: OrderMachine) => (
-              <div
-                key={om.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm"
-              >
-                <p className="font-semibold">
-                  {om.machine.fabricante} {om.machine.modelo}
-                </p>
-
+              <div key={om.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <p className="font-semibold">{om.machine.fabricante} {om.machine.modelo}</p>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
                   {om.machine.ano && <p>Ano: {om.machine.ano}</p>}
                   {om.machine.pais && <p>País: {om.machine.pais}</p>}
                   {om.machine.precoPedido != null && (
-                    <p>
-                      Preço: {Number(om.machine.precoPedido).toLocaleString("pt-PT")}{" "}
-                      {om.machine.moeda}
-                    </p>
+                    <p>Preço: {Number(om.machine.precoPedido).toLocaleString("pt-PT")} {om.machine.moeda}</p>
                   )}
                   {om.machine.urlAnuncio && (
                     <a
@@ -270,9 +237,9 @@ export function OrderDetailPage() {
         </div>
       )}
 
+      {/* Timeline */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-4">📅 Timeline</h2>
-
         {order.events?.length === 0 ? (
           <EmptyState message="Nenhum evento ainda." />
         ) : (
@@ -280,7 +247,6 @@ export function OrderDetailPage() {
             {order.events?.map((event: OrderEvent) => (
               <div key={event.id} className="relative">
                 <div className="absolute -left-[29px] w-4 h-4 rounded-full bg-blue-500 border-2 border-white dark:border-gray-900" />
-
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">{eventTypeLabel[event.type]}</span>
@@ -288,21 +254,17 @@ export function OrderDetailPage() {
                       {new Date(event.createdAt).toLocaleString("pt-PT")}
                     </span>
                   </div>
-
                   {event.mensagem && (
                     <p className="text-sm text-gray-600 dark:text-gray-300">{event.mensagem}</p>
                   )}
-
                   {event.type === "STATUS_CHANGED" && event.oldStatus && event.newStatus && (
                     <p className="text-xs text-gray-400 mt-1">
                       {event.oldStatus} → {event.newStatus}
                     </p>
                   )}
-
                   {event.type === "MACHINE_LINKED" && event.orderMachine && (
                     <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
-                      {event.orderMachine.machine.fabricante}{" "}
-                      {event.orderMachine.machine.modelo}
+                      {event.orderMachine.machine.fabricante} {event.orderMachine.machine.modelo}
                     </p>
                   )}
                 </div>
@@ -312,9 +274,9 @@ export function OrderDetailPage() {
         )}
       </div>
 
+      {/* Adicionar nota */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-4 shadow-sm">
         <h3 className="font-semibold mb-3">📝 Adicionar Nota</h3>
-
         <textarea
           rows={2}
           className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -322,13 +284,9 @@ export function OrderDetailPage() {
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-
         {addNoteMutation.error && (
-          <p className="text-red-500 text-sm mb-2">
-            {(addNoteMutation.error as Error).message}
-          </p>
+          <p className="text-red-500 text-sm mb-2">{(addNoteMutation.error as Error).message}</p>
         )}
-
         <button
           disabled={!note.trim() || addNoteMutation.isPending}
           onClick={() => addNoteMutation.mutate(note.trim())}
@@ -338,115 +296,102 @@ export function OrderDetailPage() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">🖨️ Associar Nova Máquina</h3>
-          <button
-            onClick={() => setShowMachineForm((v) => !v)}
-            className="text-blue-600 dark:text-blue-400 text-sm hover:underline"
-          >
-            {showMachineForm ? "Cancelar" : "+ Adicionar"}
-          </button>
-        </div>
+      {/* Associar máquina */}
+<div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm">
+  <div className="flex items-center justify-between mb-3">
+    <h3 className="font-semibold">🖨️ Associar Nova Máquina</h3>
+    <button
+      onClick={() => setShowMachineForm((v) => !v)}
+      className="text-blue-600 dark:text-blue-400 text-sm hover:underline"
+    >
+      {showMachineForm ? "Cancelar" : "+ Adicionar"}
+    </button>
+  </div>
 
-        {showMachineForm && (
-          <div>
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setMachineMode("existing")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  machineMode === "existing"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Escolher existente
-              </button>
+  {showMachineForm && (
+    <div>
+      {/* Toggle entre máquina existente e nova */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setMachineMode("existing")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            machineMode === "existing"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+          }`}
+        >
+          Escolher existente
+        </button>
+        <button
+          onClick={() => setMachineMode("new")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            machineMode === "new"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+          }`}
+        >
+          Criar nova
+        </button>
+      </div>
 
-              <button
-                onClick={() => setMachineMode("new")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  machineMode === "new"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Criar nova
-              </button>
-            </div>
+      {/* MODO: escolher existente */}
+      {machineMode === "existing" && (
+        <ExistingMachineSelector
+          orderId={orderId!}
+          alreadyLinked={order.orderMachines.map((om) => om.machineId)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["order", orderId] })}
+        />
+      )}
 
-            {machineMode === "existing" && (
-              <ExistingMachineSelector
-                orderId={orderId!}
-                alreadyLinked={order.orderMachines.map((om: OrderMachine) => om.machineId)}
-                onSuccess={() =>
-                  queryClient.invalidateQueries({ queryKey: ["order", orderId] })
+      {/* MODO: criar nova */}
+      {machineMode === "new" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {machineFields.map(({ label, key, placeholder, type }) => (
+            <div key={key}>
+              <label className="block text-sm font-medium mb-1">{label}</label>
+              <input
+                type={type ?? "text"}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={placeholder}
+                value={(machineForm as Record<string, string | number>)[key] ?? ""}
+                onChange={(e) =>
+                  setMachineForm({
+                    ...machineForm,
+                    [key]: type === "number" ? Number(e.target.value) || undefined : e.target.value,
+                  })
                 }
               />
-            )}
-
-            {machineMode === "new" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {machineFields.map(({ label, key, placeholder, type }) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium mb-1">{label}</label>
-                    <input
-                      type={type ?? "text"}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={placeholder}
-                      value={(machineForm as Record<string, string | number | undefined>)[key] ?? ""}
-                      onChange={(e) =>
-                        setMachineForm({
-                          ...machineForm,
-                          [key]:
-                            type === "number"
-                              ? Number(e.target.value) || undefined
-                              : e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                ))}
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Notas técnicas</label>
-                  <textarea
-                    rows={2}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Estado, contador de impressões, revisões..."
-                    value={machineForm.notasTecnicas ?? ""}
-                    onChange={(e) =>
-                      setMachineForm({ ...machineForm, notasTecnicas: e.target.value })
-                    }
-                  />
-                </div>
-
-                {linkMachineMutation.error && (
-                  <p className="text-red-500 text-sm md:col-span-2">
-                    {(linkMachineMutation.error as Error).message}
-                  </p>
-                )}
-
-                <div className="md:col-span-2">
-                  <button
-                    disabled={
-                      !machineForm.fabricante ||
-                      !machineForm.modelo ||
-                      linkMachineMutation.isPending
-                    }
-                    onClick={() =>
-                      linkMachineMutation.mutate(machineForm as CreateMachinePayload)
-                    }
-                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {linkMachineMutation.isPending ? "A associar..." : "Associar ao pedido"}
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
+          ))}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">Notas técnicas</label>
+            <textarea
+              rows={2}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Estado, contador de impressões, revisões..."
+              value={machineForm.notasTecnicas ?? ""}
+              onChange={(e) => setMachineForm({ ...machineForm, notasTecnicas: e.target.value })}
+            />
           </div>
-        )}
-      </div>
+          {linkMachineMutation.error && (
+            <p className="text-red-500 text-sm md:col-span-2">
+              {(linkMachineMutation.error as Error).message}
+            </p>
+          )}
+          <div className="md:col-span-2">
+            <button
+              disabled={!machineForm.fabricante || !machineForm.modelo || linkMachineMutation.isPending}
+              onClick={() => linkMachineMutation.mutate(machineForm as CreateMachinePayload)}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              {linkMachineMutation.isPending ? "A associar..." : "Associar ao pedido"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+</div>
     </div>
   );
 }

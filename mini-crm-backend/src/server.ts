@@ -5,7 +5,7 @@ const PORT = Number(process.env.PORT) || 3000;
 async function main() {
   const app = await buildApp();
   await app.listen({ port: PORT, host: "0.0.0.0" });
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 }
 
 main().catch((err) => {

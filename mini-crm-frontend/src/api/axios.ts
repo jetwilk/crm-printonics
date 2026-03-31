@@ -1,10 +1,7 @@
 import axios from "axios";
 
-const baseURL =
-  import.meta.env.VITE_API_URL?.trim() || "https://brown-seahorse-175384.hostingersite.com";
-
 export const api = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000",
   headers: { "Content-Type": "application/json" },
 });
 
