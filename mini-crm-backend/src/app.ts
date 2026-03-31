@@ -23,10 +23,10 @@ export async function buildApp() {
   await app.register(sensible);
 
   // Serve o frontend React (pasta dist/) ← NOVO
-  await app.register(staticFiles, {
-    root: path.join(__dirname, "../../mini-crm-frontend/dist"),
-    prefix: "/",
-  });
+await app.register(staticFiles, {
+  root: path.join(__dirname, "../frontend-dist"),
+  prefix: "/",
+});
 
   await app.register(customerRoutes);
   await app.register(orderRoutes);
