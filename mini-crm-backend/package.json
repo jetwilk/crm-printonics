@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "postinstall": "chmod +x node_modules/.bin/tsc && npm run build",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
